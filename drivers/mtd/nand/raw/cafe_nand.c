@@ -454,6 +454,7 @@ static int cafe_nand_read_page(struct nand_chip *chip, uint8_t *buf,
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
+	void *pagebuf = nand_get_data_buf(chip);
 	unsigned int max_bitflips = 0;
 	u32 ecc_result;
 
@@ -461,8 +462,11 @@ static int cafe_nand_read_page(struct nand_chip *chip, uint8_t *buf,
 		cafe_readl(cafe, NAND_ECC_RESULT),
 		cafe_readl(cafe, NAND_ECC_SYN_REG(0)));
 
-	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
-	chip->legacy.read_buf(chip, chip->oob_poi, mtd->oobsize);
+	nand_read_page_op(chip, page, 0, pagebuf,
+			  mtd->writesize + mtd->oobsize);
+
+	if (buf != pagebuf)
+		memcpy(buf, pagebuf, mtd->writesize);
 
 	ecc_result = cafe_readl(cafe, NAND_ECC_RESULT);
 	if (checkecc && (ecc_result & CAFE_NAND_ECC_RESULT_RS_ERRORS)) {
@@ -623,14 +627,16 @@ static int cafe_nand_write_page(struct nand_chip *chip,
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
+	void *pagebuf = nand_get_data_buf(chip);
 
-	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
-	chip->legacy.write_buf(chip, chip->oob_poi, mtd->oobsize);
+	if (pagebuf != buf)
+		memcpy(pagebuf, buf, mtd->writesize);
 
 	/* Set up ECC autogeneration */
 	cafe->ctl2 |= CAFE_NAND_CTRL2_AUTO_WRITE_ECC;
 
-	return nand_prog_page_end_op(chip);
+	return nand_prog_page_op(chip, page, 0, pagebuf,
+				 mtd->writesize + mtd->oobsize);
 }
 
 /* F_2[X]/(X**6+X+1)  */
