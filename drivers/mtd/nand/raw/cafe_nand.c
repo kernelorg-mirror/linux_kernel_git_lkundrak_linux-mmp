@@ -151,7 +151,6 @@ struct cafe_priv {
 	void __iomem *mmio;
 	struct rs_control *rs;
 	u32 ctl2;
-	bool usedma;
 	dma_addr_t dmaaddr;
 	unsigned char *dmabuf;
 };
@@ -179,7 +178,7 @@ static void cafe_write_buf(struct nand_chip *chip, const void *buf,
 {
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
-	if (cafe->usedma)
+	if (usedma)
 		memcpy(cafe->dmabuf, buf, len);
 	else
 		memcpy_toio(cafe->mmio + CAFE_NAND_WRITE_DATA, buf, len);
@@ -191,7 +190,7 @@ static void cafe_read_buf(struct nand_chip *chip, void *buf, unsigned int len)
 {
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
-	if (cafe->usedma)
+	if (usedma)
 		memcpy(buf, cafe->dmabuf, len);
 	else
 		memcpy_fromio(buf, cafe->mmio + CAFE_NAND_READ_DATA, len);
@@ -472,9 +471,6 @@ static int cafe_nand_attach_chip(struct nand_chip *chip)
 	dev_dbg(&cafe->pdev->dev, "Set DMA address to %x (virt %p)\n",
 		readl(cafe->mmio + CAFE_NAND_DMA_ADDR0), cafe->dmabuf);
 
-	/* Restore the DMA flag */
-	cafe->usedma = usedma;
-
 	cafe->ctl2 = CAFE_NAND_CTRL2_ECC_ALG_RS |
 		     CAFE_FIELD_PREP(NAND_CTRL2, PAGE_SIZE,
 				     mtd->writesize / 1024);
@@ -608,7 +604,7 @@ static int cafe_nand_exec_subop(struct nand_chip *chip,
 		}
 	}
 
-	if (cafe->usedma && data_instr >= 0 && !nonmem) {
+	if (usedma && data_instr >= 0 && !nonmem) {
 		u32 dmactrl = CAFE_NAND_DMA_CTRL_ENABLE |
 			      CAFE_NAND_DMA_CTRL_RESERVED;
 
@@ -800,9 +796,6 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	}
 
 	cafe_nand_init(cafe);
-
-	/* Do not use the DMA during the NAND identification */
-	cafe->usedma = 0;
 
 	/* Scan to find existence of the device */
 	nand_controller_init(&cafe->base);
