@@ -528,6 +528,7 @@ static int cafe_nand_exec_subop(struct nand_chip *chip,
 	u32 status, wait = CAFE_NAND_IRQ_CMD_DONE;
 	int ret, data_instr = -1;
 	bool waitrdy = false;
+	bool nonmem = false;
 	unsigned int i, j;
 
 	ctrl1 |= CAFE_FIELD_PREP(NAND_CTRL1, CE, subop->cs);
@@ -537,6 +538,10 @@ static int cafe_nand_exec_subop(struct nand_chip *chip,
 
 		switch (instr->type) {
 		case NAND_OP_CMD_INSTR:
+			if (instr->ctx.cmd.opcode == NAND_CMD_STATUS ||
+			    instr->ctx.cmd.opcode == NAND_CMD_READID)
+				nonmem = true;
+
 			if (!(ctrl1 & CAFE_NAND_CTRL1_HAS_CMD))
 				ctrl1 |= CAFE_NAND_CTRL1_HAS_CMD |
 					 CAFE_FIELD_PREP(NAND_CTRL1, CMD,
@@ -567,7 +572,8 @@ static int cafe_nand_exec_subop(struct nand_chip *chip,
 
 		case NAND_OP_DATA_IN_INSTR:
 			data_instr = i;
-			ctrl1 |= CAFE_NAND_CTRL1_HAS_DATA_IN;
+			if (!nonmem)
+				ctrl1 |= CAFE_NAND_CTRL1_HAS_DATA_IN;
 			break;
 
 		case NAND_OP_DATA_OUT_INSTR:
@@ -587,11 +593,22 @@ static int cafe_nand_exec_subop(struct nand_chip *chip,
 	}
 
 	if (data_instr >= 0) {
-		writel(nand_subop_get_data_len(subop, data_instr),
-		       cafe->mmio + CAFE_NAND_DATA_LEN);
+		unsigned int data_len;
+
+		data_len = nand_subop_get_data_len(subop, data_instr);
+		if (nonmem) {
+			ctrl1 |= CAFE_FIELD_PREP(NAND_CTRL1,
+						 NUM_NONMEM_READ_LOW,
+						 data_len & 0x1);
+			ctrl1 |= CAFE_FIELD_PREP(NAND_CTRL1,
+						 NUM_NONMEM_READ_HIGH,
+						 data_len >> 1);
+		} else {
+			writel(data_len, cafe->mmio + CAFE_NAND_DATA_LEN);
+		}
 	}
 
-	if (cafe->usedma && data_instr >= 0) {
+	if (cafe->usedma && data_instr >= 0 && !nonmem) {
 		u32 dmactrl = CAFE_NAND_DMA_CTRL_ENABLE |
 			      CAFE_NAND_DMA_CTRL_RESERVED;
 
@@ -626,7 +643,12 @@ static int cafe_nand_exec_subop(struct nand_chip *chip,
 	if (ret)
 		return ret;
 
-	if (ctrl1 & CAFE_NAND_CTRL1_HAS_DATA_IN) {
+	if (nonmem) {
+		memcpy_fromio(subop->instrs[data_instr].ctx.data.buf.in +
+			      nand_subop_get_data_start_off(subop, data_instr),
+			      cafe->mmio + CAFE_NAND_NONMEM_READ_DATA,
+			      nand_subop_get_data_len(subop, data_instr));
+	} else if (ctrl1 & CAFE_NAND_CTRL1_HAS_DATA_IN) {
 		cafe_read_buf(chip,
 			      subop->instrs[data_instr].ctx.data.buf.in +
 			      nand_subop_get_data_start_off(subop, data_instr),
