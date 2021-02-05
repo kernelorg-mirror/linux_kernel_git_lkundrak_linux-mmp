@@ -83,9 +83,6 @@ static const u32 armada510_clk_sels[] = {
 };
 
 static const struct armada_clocking_params armada510_clocking = {
-	/* HDMI requires -0.6%..+0.5% */
-	.permillage_min = 994,
-	.permillage_max = 1005,
 	.settable = BIT(0) | BIT(1),
 	.div_max = SCLK_510_INT_DIV_MASK,
 };
@@ -118,7 +115,7 @@ static int armada510_crtc_compute_clock(struct armada_crtc *dcrtc,
 	if (sclk) {
 		clk_set_rate(res.clk, res.desired_clk_hz);
 
-		*sclk = res.div | armada510_clk_sels[idx];
+		*sclk = res.div | res.frac << 16 | armada510_clk_sels[idx];
 
 		/* We are now using this clock */
 		v->sel_clk = res.clk;

@@ -73,8 +73,6 @@ static int armada6x0_crtc_init(struct armada_crtc *dcrtc, struct device *dev)
 }
 
 static const struct armada_clocking_params armada6x0_clocking = {
-	.permillage_min = 900,
-	.permillage_max = 1100,
 	.settable = BIT(0) | BIT(1) | BIT(2),
 	.div_max = SCLK_610_INT_DIV_MASK,
 };
@@ -137,6 +135,7 @@ static int armada6x0_crtc_compute_clock(struct armada_crtc *dcrtc,
 		*sclk |= 1 << 8;	/* MIPI clock bypass */
 		*sclk |= clk_sels[idx];
 		*sclk |= res.div;
+		*sclk |= res.frac << 16;
 
 		/* We are now using this clock */
 		v->sel_clk = res.clk;

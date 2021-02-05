@@ -863,12 +863,10 @@ int armada_crtc_select_clock(struct armada_crtc *dcrtc,
 			     unsigned long desired_khz)
 {
 	unsigned long desired_hz = desired_khz * 1000;
-	unsigned long desired_clk_hz;	// requested clk input
 	unsigned long real_clk_hz;	// actual clk input
-	unsigned long real_hz;		// actual pixel clk
-	unsigned long permillage;
 	struct clk *clk;
 	u32 div;
+	u64 frac;
 	int i;
 
 	DRM_DEBUG_KMS("[CRTC:%u:%s] desired clock=%luHz\n",
@@ -880,55 +878,42 @@ int armada_crtc_select_clock(struct armada_crtc *dcrtc,
 			continue;
 
 		if (params->settable & BIT(i)) {
-			real_clk_hz = clk_round_rate(clk, desired_hz);
-			desired_clk_hz = desired_hz;
+			real_clk_hz = clk_round_rate(clk, desired_hz * 2);
 		} else {
 			real_clk_hz = clk_get_rate(clk);
-			desired_clk_hz = real_clk_hz;
 		}
 
 		/* If the clock can do exactly the desired rate, we're done */
 		if (real_clk_hz == desired_hz) {
-			real_hz = real_clk_hz;
 			div = 1;
+			frac = 0;
 			goto found;
 		}
 
-		/* Calculate the divider - if invalid, we can't do this rate */
-		div = DIV_ROUND_CLOSEST(real_clk_hz, desired_hz);
-		if (div == 0 || div > params->div_max)
-			continue;
+		/* Calculate the divisors */
+		div = real_clk_hz / desired_hz;
+		frac = ((u64)real_clk_hz - desired_hz) << 12;
+		do_div(frac, real_clk_hz);
 
-		/* Calculate the actual rate - HDMI requires -0.6%..+0.5% */
-		real_hz = DIV_ROUND_CLOSEST(real_clk_hz, div);
-
-		DRM_DEBUG_KMS("[CRTC:%u:%s] clk=%u %luHz div=%u real=%luHz\n",
+		DRM_DEBUG_KMS("[CRTC:%u:%s] clk=%u %luHz div=%u frac=%llu\n",
 			dcrtc->crtc.base.id, dcrtc->crtc.name,
-			i, real_clk_hz, div, real_hz);
+			i, real_clk_hz, div, frac);
 
-		/* Avoid repeated division */
-		if (real_hz < desired_hz) {
-			permillage = real_hz / desired_khz;
-			if (permillage < params->permillage_min)
-				continue;
-		} else {
-			permillage = DIV_ROUND_UP(real_hz, desired_khz);
-			if (permillage > params->permillage_max)
-				continue;
-		}
-		goto found;
+		if (frac < 0xfff)
+			goto found;
 	}
 
 	return -ERANGE;
 
 found:
-	DRM_DEBUG_KMS("[CRTC:%u:%s] selected clk=%u %luHz div=%u real=%luHz\n",
+	DRM_DEBUG_KMS("[CRTC:%u:%s] selected clk=%u %luHz div=%u frac=%llu\n",
 		dcrtc->crtc.base.id, dcrtc->crtc.name,
-		i, real_clk_hz, div, real_hz);
+		i, real_clk_hz, div, frac);
 
-	res->desired_clk_hz = desired_clk_hz;
+	res->desired_clk_hz = real_clk_hz;
 	res->clk = clk;
 	res->div = div;
+	res->frac = frac;
 
 	return i;
 }

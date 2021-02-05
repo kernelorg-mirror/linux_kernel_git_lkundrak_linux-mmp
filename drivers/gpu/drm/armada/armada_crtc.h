@@ -95,8 +95,6 @@ struct armada_crtc {
 void armada_drm_crtc_update_regs(struct armada_crtc *, struct armada_regs *);
 
 struct armada_clocking_params {
-	unsigned long permillage_min;
-	unsigned long permillage_max;
 	u32 settable;
 	u32 div_max;
 };
@@ -105,6 +103,7 @@ struct armada_clk_result {
 	unsigned long desired_clk_hz;
 	struct clk *clk;
 	u32 div;
+	u32 frac;
 };
 
 int armada_crtc_select_clock(struct armada_crtc *dcrtc,
