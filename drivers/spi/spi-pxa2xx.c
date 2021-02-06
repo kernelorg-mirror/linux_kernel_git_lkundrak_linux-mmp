@@ -430,11 +430,6 @@ static void cs_assert(struct spi_device *spi)
 		return;
 	}
 
-	if (chip->gpiod_cs) {
-		gpiod_set_value(chip->gpiod_cs, chip->gpio_cs_inverted);
-		return;
-	}
-
 	if (is_lpss_ssp(drv_data))
 		lpss_ssp_cs_control(spi, true);
 }
@@ -457,11 +452,6 @@ static void cs_deassert(struct spi_device *spi)
 
 	if (chip->cs_control) {
 		chip->cs_control(PXA2XX_CS_DEASSERT);
-		return;
-	}
-
-	if (chip->gpiod_cs) {
-		gpiod_set_value(chip->gpiod_cs, !chip->gpio_cs_inverted);
 		return;
 	}
 
@@ -1202,63 +1192,6 @@ static int pxa2xx_spi_unprepare_transfer(struct spi_controller *controller)
 	return 0;
 }
 
-static int setup_cs(struct spi_device *spi, struct chip_data *chip,
-		    struct pxa2xx_spi_chip *chip_info)
-{
-	struct driver_data *drv_data =
-		spi_controller_get_devdata(spi->controller);
-	struct gpio_desc *gpiod;
-	int err = 0;
-
-	if (chip == NULL)
-		return 0;
-
-	if (drv_data->cs_gpiods) {
-		gpiod = drv_data->cs_gpiods[spi->chip_select];
-		if (gpiod) {
-			chip->gpiod_cs = gpiod;
-			chip->gpio_cs_inverted = spi->mode & SPI_CS_HIGH;
-			gpiod_set_value(gpiod, chip->gpio_cs_inverted);
-		}
-
-		return 0;
-	}
-
-	if (chip_info == NULL)
-		return 0;
-
-	/* NOTE: setup() can be called multiple times, possibly with
-	 * different chip_info, release previously requested GPIO
-	 */
-	if (chip->gpiod_cs) {
-		gpiod_put(chip->gpiod_cs);
-		chip->gpiod_cs = NULL;
-	}
-
-	/* If (*cs_control) is provided, ignore GPIO chip select */
-	if (chip_info->cs_control) {
-		chip->cs_control = chip_info->cs_control;
-		return 0;
-	}
-
-	if (gpio_is_valid(chip_info->gpio_cs)) {
-		err = gpio_request(chip_info->gpio_cs, "SPI_CS");
-		if (err) {
-			dev_err(&spi->dev, "failed to request chip select GPIO%d\n",
-				chip_info->gpio_cs);
-			return err;
-		}
-
-		gpiod = gpio_to_desc(chip_info->gpio_cs);
-		chip->gpiod_cs = gpiod;
-		chip->gpio_cs_inverted = spi->mode & SPI_CS_HIGH;
-
-		err = gpiod_direction_output(gpiod, !chip->gpio_cs_inverted);
-	}
-
-	return err;
-}
-
 static int setup(struct spi_device *spi)
 {
 	struct pxa2xx_spi_chip *chip_info;
@@ -1341,6 +1274,8 @@ static int setup(struct spi_device *spi)
 		chip->dma_threshold = 0;
 		if (chip_info->enable_loopback)
 			chip->cr1 = SSCR1_LBM;
+		if (chip_info->cs_control)
+			chip->cs_control = chip_info->cs_control;
 	}
 	if (spi_controller_is_slave(drv_data->controller)) {
 		chip->cr1 |= SSCR1_SCFR;
@@ -1413,23 +1348,7 @@ static int setup(struct spi_device *spi)
 	if (drv_data->ssp_type == CE4100_SSP)
 		return 0;
 
-	return setup_cs(spi, chip, chip_info);
-}
-
-static void cleanup(struct spi_device *spi)
-{
-	struct chip_data *chip = spi_get_ctldata(spi);
-	struct driver_data *drv_data =
-		spi_controller_get_devdata(spi->controller);
-
-	if (!chip)
-		return;
-
-	if (drv_data->ssp_type != CE4100_SSP && !drv_data->cs_gpiods &&
-	    chip->gpiod_cs)
-		gpiod_put(chip->gpiod_cs);
-
-	kfree(chip);
+	return 0;
 }
 
 #ifdef CONFIG_ACPI
@@ -1669,7 +1588,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	struct driver_data *drv_data;
 	struct ssp_device *ssp;
 	const struct lpss_config *config;
-	int status, count;
+	int status;
 	u32 tmp;
 
 	platform_info = dev_get_platdata(dev);
@@ -1712,7 +1631,6 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 
 	controller->bus_num = ssp->port_id;
 	controller->dma_alignment = DMA_ALIGNMENT;
-	controller->cleanup = cleanup;
 	controller->setup = setup;
 	controller->set_cs = pxa2xx_spi_set_cs;
 	controller->transfer_one = pxa2xx_spi_transfer_one;
@@ -1722,6 +1640,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	controller->fw_translate_cs = pxa2xx_spi_fw_translate_cs;
 	controller->auto_runtime_pm = true;
 	controller->flags = SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX;
+	controller->use_gpio_descriptors = true;
 
 	drv_data->ssp_type = ssp->type;
 
@@ -1848,38 +1767,6 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		}
 	}
 	controller->num_chipselect = platform_info->num_chipselect;
-
-	count = gpiod_count(&pdev->dev, "cs");
-	if (count > 0) {
-		int i;
-
-		controller->num_chipselect = max_t(int, count,
-			controller->num_chipselect);
-
-		drv_data->cs_gpiods = devm_kcalloc(&pdev->dev,
-			controller->num_chipselect, sizeof(struct gpio_desc *),
-			GFP_KERNEL);
-		if (!drv_data->cs_gpiods) {
-			status = -ENOMEM;
-			goto out_error_clock_enabled;
-		}
-
-		for (i = 0; i < controller->num_chipselect; i++) {
-			struct gpio_desc *gpiod;
-
-			gpiod = devm_gpiod_get_index(dev, "cs", i, GPIOD_ASIS);
-			if (IS_ERR(gpiod)) {
-				/* Means use native chip select */
-				if (PTR_ERR(gpiod) == -ENOENT)
-					continue;
-
-				status = PTR_ERR(gpiod);
-				goto out_error_clock_enabled;
-			} else {
-				drv_data->cs_gpiods[i] = gpiod;
-			}
-		}
-	}
 
 	if (platform_info->is_slave) {
 		drv_data->gpiod_ready = devm_gpiod_get_optional(dev,
