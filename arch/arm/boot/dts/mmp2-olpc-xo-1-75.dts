@@ -391,131 +391,176 @@
 };
 
 &pinctrl {
-	uart3_pins: pinmux_uart3_pins {
-		pinctrl-single,function-mask = <0x1ff7>;
-		pinctrl-single,pins = <0x260 (4 | WAKE_EDGE_OFF | SLEEP_SEL)>,
-				      <0x264 (4 | WAKE_EDGE_OFF | SLEEP_SEL)>;
-
+	uart3_pins: uart3-pins {
+		pins = "gpio_115", "gpio_116";
+		function = "uart3";
 	};
 
-	uart4_pins: pinmux_uart4_pins {
-		pinctrl-single,function-mask = <0x1ff7>;
-		pinctrl-single,pins = <0x268 (3 | WAKE_EDGE_OFF | SLEEP_SEL)>,
-				      <0x26c (3 | WAKE_EDGE_OFF | SLEEP_SEL)>;
-
+	uart4_pins: uart4-pins {
+		pins = "gpio_117", "gpio_118";
+		function = "uart4";
 	};
 
-	mmc1_pins: pinmux_mmc1_pins {
-		pinctrl-single,function-mask = <0x1ff7>;
-		pinctrl-single,pins = <0x028 (1 | WAKE_EDGE_OFF | SLEW_FAST)>,
-				      <0x02c (1 | WAKE_EDGE_OFF | SLEW_FAST)>,
-				      <0x030 (1 | WAKE_EDGE_OFF | SLEW_FAST)>,
-				      <0x034 (1 | WAKE_EDGE_OFF | SLEW_FAST)>,
-				      <0x03c (1 | WAKE_EDGE_OFF | SLEW_FAST)>,
-				      <0x048 (1 | WAKE_EDGE_OFF | SLEW_FAST)>,
-				      <0x050 (1 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW)>; // GPIO_141   C22   0xc0c1 <BIAS_PULL_UP | BIAS_ON)>,
+	mmc1_pins: mmc1-pins {
+		mmc1-data {
+			pins = "gpio_131", "gpio_132", "gpio_133", "gpio_134";
+			function = "mmc1";
+			slew-rate = <3>;
+			marvell,sleep-output = <0>;
+		};
+
+		mmc1-cmd {
+			pins = "gpio_136";
+			function = "mmc1";
+			slew-rate = <3>;
+			marvell,sleep-output = <1>;
+		};
+
+		mmc1-clk {
+			pins = "gpio_139";
+			function = "mmc1";
+			slew-rate = <3>;
+			marvell,sleep-output = <0>;
+		};
+
+		mmc1-wp {
+			pins = "gpio_141";
+			function = "mmc1";
+			bias-pull-up;
+			marvell,sleep-input;
+		};
 	};
 
-	mmc2_pins: pinmux_mmc2_pins {
-		pinctrl-single,function-mask = <0x1ff7>;
-		pinctrl-single,pins = <0x0e8 (1 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW)>,
-				      <0x0ec (1 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW)>,
-				      <0x0f0 (1 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW)>,
-				      <0x0f4 (1 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW)>,
-				      <0x0f8 (1 | WAKE_EDGE_OFF)>,
-				      <0x0fc (1 | WAKE_EDGE_OFF)>;
+	mmc2_pins: mmc2-pins {
+		mmc2-data-pins {
+			pins = "gpio_37", "gpio_38", "gpio_39", "gpio_40";
+			function = "mmc2";
+			marvell,sleep-input;
+		};
+
+		mmc2-cmd-pins {
+			pins = "gpio_41";
+			function = "mmc2";
+			marvell,sleep-output = <0>;
+		};
+
+		mmc2-clk-pins {
+			pins = "gpio_42";
+			function = "mmc2";
+			marvell,sleep-output = <0>;
+		};
 	};
 
-	mmc3_pins: pinmux_mmc3_pins {
-		pinctrl-single,function-mask = <0x1ff7>;
-		pinctrl-single,pins = <0x1e0 (2 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW | SLEW_FAST)>,
-				      <0x1e4 (2 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW | SLEW_FAST)>,
-				      <0x1e8 (2 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW | SLEW_FAST)>,
-				      <0x1ec (2 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW | SLEW_FAST)>,
-				      <0x200 (2 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW | SLEW_FAST)>,
-				      <0x204 (2 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW | SLEW_FAST)>,
-				      <0x208 (2 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW | SLEW_FAST)>,
-				      <0x20c (2 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW | SLEW_FAST)>,
-				      <0x240 (2 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW | SLEW_FAST)>,
-				      <0x244 (2 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW | SLEW_FAST)>;
+	mmc3_pins: mmc3-pins {
+		pins = "nd_io0", "nd_io1", "nd_io10", "nd_io11", "nd_io2",
+		       "nd_io3", "nd_io8", "nd_io9", "sm_sclk", "nd_rdy0";
+		function = "mmc3";
+		marvell,sleep-input;
+		slew-rate = <3>;
 	};
 
-	twsi1_pins: pinmux_twsi1_pins {
-		pinctrl-single,function-mask = <0x1ff7>;
-		pinctrl-single,pins = <0x140 (0 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW | SLEW_MEDIUM)>, // TWSI1_SCL  L26   0xd0c0  <BIAS_PULL_UP | BIAS_ON)>,
-				      <0x144 (0 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW | SLEW_MEDIUM)>; // TWSI1_SDA  K28   0xd0c0  <BIAS_PULL_UP | BIAS_ON)>,
-
+	twsi1_pins: twsi1-pins {
+		pins = "twsi1_scl", "twsi1_sda";
+		bias-pull-up;
+		marvell,sleep-input;
+		slew-rate = <2>;
 	};
 
-	twsi2_pins: pinmux_twsi2_pins {
-		pinctrl-single,function-mask = <0x1ff7>;
-		pinctrl-single,pins = <0x128 (2 | WAKE_EDGE_OFF | TWSI)>,
-				      <0x12c (2 | WAKE_EDGE_OFF | TWSI)>;
+	twsi2_pins: twsi2-pins {
+		pins = "gpio_53", "gpio_54";
+		function = "twsi2";
+		marvell,sleep-output = <1>;
+		//XXX-TWSI;
 	};
 
-	twsi6_pins: pinmux_twsi6_pins {
-		pinctrl-single,function-mask = <0x1ff7>;
-		pinctrl-single,pins = <0x110 (3 | WAKE_EDGE_OFF)>, // GPIO_47    H26   0xc143 <BIAS_PULL_UP | BIAS_ON)>,
-				      <0x114 (3 | WAKE_EDGE_OFF)>; // GPIO_48    N22   0xc143 <BIAS_PULL_UP | BIAS_ON)>,
+	twsi6_pins: twsi6-pins {
+		pins = "gpio_47", "gpio_48";
+		function = "twsi6";
+		bias-pull-up;
+		marvell,sleep-output = <1>;
 	};
 
-	lcd0_pins: pinmux_lcd0_pins {
-		pinctrl-single,function-mask = <0x1ff7>;
-		pinctrl-single,pins = <0x170 (1 | WAKE_EDGE_OFF)>,
-				      <0x174 (1 | WAKE_EDGE_OFF)>,
-				      <0x178 (1 | WAKE_EDGE_OFF)>,
-				      <0x17c (1 | WAKE_EDGE_OFF)>,
-				      <0x180 (1 | WAKE_EDGE_OFF)>,
-				      <0x184 (1 | WAKE_EDGE_OFF)>,
-				      <0x188 (1 | WAKE_EDGE_OFF)>,
-				      <0x18c (1 | WAKE_EDGE_OFF)>,
-				      <0x190 (1 | WAKE_EDGE_OFF)>,
-				      <0x194 (1 | WAKE_EDGE_OFF)>,
-				      <0x198 (1 | WAKE_EDGE_OFF)>,
-				      <0x19c (1 | WAKE_EDGE_OFF)>,
-				      <0x1a0 (1 | WAKE_EDGE_OFF)>,
-				      <0x1a4 (1 | WAKE_EDGE_OFF)>,
-				      <0x1a8 (1 | WAKE_EDGE_OFF)>,
-				      <0x1ac (1 | WAKE_EDGE_OFF)>,
-				      <0x1b0 (1 | WAKE_EDGE_OFF)>,
-				      <0x1b4 (1 | WAKE_EDGE_OFF)>,
-				      <0x1b8 (1 | WAKE_EDGE_OFF)>,
-				      <0x1bc (1 | WAKE_EDGE_OFF)>,
-				      <0x1c0 (1 | WAKE_EDGE_OFF)>,
-				      <0x1c4 (1 | WAKE_EDGE_OFF)>;
-
+	lcd0_pins: lcd0-pins {
+		pins = "gpio_74", "gpio_75", "gpio_76", "gpio_77",
+		       "gpio_78", "gpio_79", "gpio_80", "gpio_81",
+		       "gpio_82", "gpio_83", "gpio_84", "gpio_85",
+		       "gpio_86", "gpio_87", "gpio_88", "gpio_89",
+		       "gpio_90", "gpio_91", "gpio_92", "gpio_93",
+		       "gpio_94", "gpio_95";
+		function = "lcd";
+		marvell,sleep-output = <0>;
 	};
 
-	ssp3_pins: pinmux_ssp3_pins {
-		pinctrl-single,function-mask = <0x1ff7>;
-		pinctrl-single,pins = <0x270 (3 | WAKE_EDGE_OFF)>,
-				      <0x274 (3 | WAKE_EDGE_OFF)>,
-				      <0x278 (3 | WAKE_EDGE_OFF)>,
-				      <0x27c (3 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW)>;
+	ssp3_pins: ssp3-pins {
+		ssp3-clk-pins {
+			pins = "gpio_119";
+			function = "ssp3";
+			marvell,sleep-output = <0>;
+		};
+
+		ssp3-frm-pins {
+			pins = "gpio_120";
+			function = "ssp3";
+			marvell,sleep-output = <1>;
+		};
+
+		ssp3-rxd-pins {
+			pins = "gpio_121";
+			function = "ssp3";
+			marvell,sleep-output = <0>;
+		};
+
+		ssp3-txd-pins {
+			pins = "gpio_122";
+			function = "ssp3";
+			marvell,sleep-input;
+		};
 	};
 
-	camera0_pins: pinmux_camera0_pins {
-		pinctrl-single,function-mask = <0x1ff7>;
-		pinctrl-single,pins = <0x280 (1 | WAKE_EDGE_OFF)>,
-				      <0x284 (1 | WAKE_EDGE_OFF)>,
-				      <0x288 (1 | WAKE_EDGE_OFF)>,
-				      <0x28c (1 | WAKE_EDGE_OFF)>,
-				      <0x290 (1 | WAKE_EDGE_OFF)>,
-				      <0x294 (1 | WAKE_EDGE_OFF)>,
-				      <0x298 (1 | WAKE_EDGE_OFF)>,
-				      <0x29c (1 | WAKE_EDGE_OFF)>,
-				      <0x2a0 (1 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW)>,
-				      <0x2a4 (1 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW)>,
-				      <0x2a8 (1 | WAKE_EDGE_OFF)>,
-				      <0x2ac (1 | WAKE_EDGE_OFF)>;
+	camera0_pins: camera0-pins {
+		camera0-data-pins {
+			pins = "gpio_59", "gpio_60", "gpio_61", "gpio_62",
+			       "gpio_63", "gpio_64", "gpio_65", "gpio_66";
+			function = "ccic";
+			marvell,sleep-output = <0>;
+		};
+
+		camera0-sync-pins {
+			pins = "gpio_67", "gpio_68";
+			function = "ccic";
+			marvell,sleep-input;
+		};
+
+		camera0-clk-pins {
+			pins = "gpio_69", "gpio_70";
+			function = "ccic";
+			marvell,sleep-output = <0>;
+		};
 	};
 
-	sspa0_pins: pinmux_sspa0_pins {
-		pinctrl-single,function-mask = <0x1ff7>;
-		pinctrl-single,pins = <0x0b4 (1 | WAKE_EDGE_OFF)>,
-				      <0x0b8 (1 | WAKE_EDGE_OFF)>,
-				      <0x0bc (1 | WAKE_EDGE_OFF)>,
-				      <0x0c0 (1 | WAKE_EDGE_OFF)>,
-				      <0x0c4 (1 | WAKE_EDGE_OFF | SLEEP_OUTPUT_LOW)>;
+	sspa0_pins: sspa0-pins {
+		sspa0-clk-pins {
+			pins = "gpio_24", "gpio_25";
+			function = "i2s";
+			marvell,sleep-output = <1>;
+		};
+
+		sspa0-sync-pins {
+			pins = "gpio_26";
+			function = "i2s";
+			marvell,sleep-output = <0>;
+		};
+
+		sspa0-dout-pins {
+			pins = "gpio_27";
+			function = "i2s";
+			marvell,sleep-output = <1>;
+		};
+
+		sspa0-din-pins {
+			pins = "gpio_28";
+			function = "i2s";
+			marvell,sleep-input;
+		};
 	};
 };
